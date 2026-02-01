@@ -1,0 +1,67 @@
+services:
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prom_data:/prometheus
+
+  alertmanager:
+    image: prom/alertmanager
+    container_name: alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+    ports:
+      - "9093:9093"
+    restart: unless-stopped
+    volumes:
+      - ./alertmanager:/etc/alertmanager
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3465:3000" # map not on 3000 because proxy_manager using it somehow
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: "admin" # default is admin credentials, on the first login change it
+      GF_SECURITY_ADMIN_PASSWORD: "admin"
+    volumes:
+      - ./grafana:/etc/grafana/provisioning/datasources
+      - grafana_data:/var/lib/grafana
+
+  ecoflow_exporter:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: python3 ecoflow_exporter_server.py
+    restart: unless-stopped
+
+  proxy_manager: # if you want to use it from DNS with https in the other cases, just comment this container
+    image: 'jc21/nginx-proxy-manager:latest'
+    #   restart: unless-stopped
+    restart: always
+    ports:
+      - '80:80'
+      - '81:81'
+      - '443:443'
+    network_mode: "host"
+    volumes:
+      - ./data:/data
+      #      - ./letsencrypt:/etc/letsencrypt
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+
+
+
+volumes:
+  prom_data:
+  grafana_data:

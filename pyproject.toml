@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "ecoflow-api"
+version = "0.1.0"
+description = ""
+authors = ["Yevhenii Havrus <yevhen_h@dataforest.ai>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+requests = "^2.32.5"
+paho-mqtt = "^2.1.0"
+prometheus-client = "^0.23.1"
+loguru = "^0.7.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

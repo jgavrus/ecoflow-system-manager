@@ -1,0 +1,38 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+*.egg-info/
+.eggs/
+*.egg
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+# Poetry
+poetry.lock
+
+# Docker-related files
+docker-compose.override.yml
+docker-compose.*.yml
+docker-compose.yml
+
+# IDE files
+.idea/
+
+# Personal environment variables
+.env
+
+# Log files
+*.log
+
+# Local data store files
+data/

@@ -1,0 +1,2 @@
+class EcoflowMetricException(Exception):
+    pass

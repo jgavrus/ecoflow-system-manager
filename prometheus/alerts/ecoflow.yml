@@ -1,0 +1,65 @@
+groups:
+- name: EcoFlow
+  rules:
+    - alert: EcoFlowOffline
+      expr: ecoflow_online == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: EcoFlow is offline
+        description: "Device **{{ $labels.device }}** has disappeared from the network"
+
+    - alert: EcoFlowPowerOutage
+      expr: ecoflow_chg_dsg_state == 1
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: EcoFlow detects power outage
+        description: "Device **{{ $labels.device }}** start discharging"
+
+    - alert: EcoFlowLowRemainingTime
+      expr: (ecoflow_bms_ems_status_dsg_remain_time or ecoflow_bms_dsg_rem_time) < 10
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: EcoFlow will discharge soon
+        description: "Device **{{ $labels.device }}** will discharge in {{ $value }} min"
+
+    - alert: EcoFlowHalfBattery
+      expr: (ecoflow_bms_batt_soc or ecoflow_soc) < 50
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: EcoFlow half battery
+        description: "Device **{{ $labels.device }}** battery level less than 50%"
+
+    - alert: EcoFlowHalfBattery
+      expr: (ecoflow_bms_batt_soc or ecoflow_soc) < 25
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: EcoFlow half battery
+        description: "**{{ $labels.device }}** battery level less than 25%"
+
+    - alert: EcoFlowLowBattery
+      expr: (ecoflow_bms_batt_soc or ecoflow_soc) < 10
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: EcoFlow low battery
+        description: "Device **{{ $labels.device }}** battery level less than 10%"
+
+    - alert: EcoFlowHighLoad
+      expr: ((ecoflow_pow_get_ac_hv_out * -1) or (ecoflow_output_watts * -1)) > 1000 and ecoflow_pow_in_sum_w == 0
+      for: 0m
+      labels:
+        severity: warning
+      annotations:
+        summary: EcoFlow high load
+        description: "Device **{{ $labels.device }}** under high load: ~{{ $value }}W"
