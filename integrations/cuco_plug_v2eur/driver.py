@@ -1,9 +1,15 @@
+import logging
 import os
+import warnings
 from typing import Optional
 
+# remove useless future warning
+warnings.filterwarnings("ignore", category=FutureWarning, module=r"miio\.miot_device")
 from miio import MiotDevice
 
 from integrations.cuco_plug_v2eur.statuses import SmartPlug2Status, PowerOnState
+
+logging.getLogger("miio").setLevel(logging.ERROR)  # remove warning about undoc device
 
 
 class XiaomiSmartPlug2(MiotDevice):
@@ -314,4 +320,4 @@ class XiaomiSmartPlug2(MiotDevice):
 
 if __name__ == "__main__":
     plug = XiaomiSmartPlug2(os.getenv("PLUG_ADDRESS"), os.getenv("PLUG_TOKEN"))
-    print(plug.on())
+    plug.off()
