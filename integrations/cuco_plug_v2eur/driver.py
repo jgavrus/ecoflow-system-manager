@@ -1,4 +1,4 @@
-from loguru import logger
+import os
 from typing import Optional
 
 from miio import MiotDevice
@@ -8,9 +8,9 @@ from integrations.cuco_plug_v2eur.statuses import SmartPlug2Status, PowerOnState
 
 class XiaomiSmartPlug2(MiotDevice):
     """
-    Xiaomi Smart Plug 2 Wi-Fi  (cuco.plug.v2eur)
-    ─────────────────────────────────────────────
-    Повний MIoT маппинг:
+    Xiaomi Smart Plug 2 Wi-Fi (cuco.plug.v2eur)
+    ───────────────────────────────────────────
+    Full MIoT mapping:
 
         siid=2   Switch
             piid=1  on                          bool  RW
@@ -19,22 +19,22 @@ class XiaomiSmartPlug2(MiotDevice):
 
         siid=4   Max Power Limit
             piid=1  on                          bool  RW
-            piid=2  power                       int   RW   (кВ, наприклад 2 = 2000W)
-            piid=3  protect_time                int   RW   (хвилини)
+            piid=2  power                       int   RW   (kW, e.g. 2 = 2000W)
+            piid=3  protect_time                int   RW   (minutes)
 
-        siid=5   Cycle (Розклад)
+        siid=5   Cycle (Schedule)
             piid=1  status                      bool  RW
-            piid=2  data_value                  str   RW   ("on_хв;off_хв;flag;flag")
+            piid=2  data_value                  str   RW   ("on_min;off_min;flag;flag")
 
         siid=7   Indicator Light
             piid=1  on                          bool  RW
 
-        siid=9   Delay (Таймер)
+        siid=9   Delay (Timer)
             piid=1  on                          bool  RW
-            piid=2  delay_time                  int   RW   (секунди)
+            piid=2  delay_time                  int   RW   (seconds)
 
         siid=11  Power Consumption
-            piid=1  power_consumption           int   R    (Wh — завжди 0, баг)
+            piid=1  power_consumption           int   R    (Wh — always 0, bug)
             piid=2  electric_power              int   R    (W)
 
         siid=13  Physical Controls
@@ -43,7 +43,7 @@ class XiaomiSmartPlug2(MiotDevice):
         siid=14  Charging Protection
             piid=1  on                          bool  RW
             piid=2  power                       int   RW   (W)
-            piid=3  remain / status             int   R    (недокументовано)
+            piid=3  remain / status             int   R    (undocumented)
     """
 
     MAPPING = {
@@ -78,7 +78,7 @@ class XiaomiSmartPlug2(MiotDevice):
         super().__init__(ip, token, mapping=self.MAPPING)
 
     def status(self) -> SmartPlug2Status:
-        """Отримати повний статус пристрою."""
+        """Get full device status."""
         props = self.get_properties_for_mapping()
         v = {p["did"]: p.get("value") for p in props}
 
@@ -102,10 +102,6 @@ class XiaomiSmartPlug2(MiotDevice):
             charging_protection_remain=v["charging_protection_remain"],
         )
 
-    # ==================================================================
-    # siid=2 — SWITCH
-    # ==================================================================
-
     def on(self) -> None:
         self.set_property_by(siid=2, piid=1, value=True)
 
@@ -113,7 +109,7 @@ class XiaomiSmartPlug2(MiotDevice):
         self.set_property_by(siid=2, piid=1, value=False)
 
     def toggle(self) -> None:
-        """on->off/off-on"""
+        """on->off/off->on"""
         current = self.get_property_by(siid=2, piid=1)[0]["value"]
         self.set_property_by(siid=2, piid=1, value=not current)
 
@@ -123,12 +119,12 @@ class XiaomiSmartPlug2(MiotDevice):
 
     @property
     def fault(self) -> int:
-        """device error code. 0 = ОК."""
+        """Device error code. 0 = OK."""
         return self.get_property_by(siid=2, piid=2)[0]["value"]
 
     def set_power_on_state(self, state: PowerOnState) -> None:
         """
-        set default power on state.
+        Set the default power-on state.
 
         Args:
             state: PowerOnState.OFF / ON / LAST
@@ -137,16 +133,16 @@ class XiaomiSmartPlug2(MiotDevice):
 
     @property
     def power(self) -> int:
-        """current power (W)."""
+        """Current power (W)."""
         return self.get_property_by(siid=11, piid=2)[0]["value"]
 
     @property
     def power_consumption(self) -> int:
         """
-        all charged power (Wh).
+        Total charged energy (Wh).
 
-        ⚠️ firmware bug on cuco.plug.v2eur allways returns 0.
-        see: hass-xiaomi-miot issue #1347
+        ⚠️ Firmware bug on cuco.plug.v2eur always returns 0.
+        See: hass-xiaomi-miot issue #1347
         """
         return self.get_property_by(siid=11, piid=1)[0]["value"]
 
@@ -155,7 +151,7 @@ class XiaomiSmartPlug2(MiotDevice):
     # ==================================================================
 
     def set_indicator(self, on: bool) -> None:
-        """on/of LED indicator."""
+        """Turn the LED indicator on/off."""
         self.set_property_by(siid=7, piid=1, value=on)
 
     @property
@@ -164,21 +160,17 @@ class XiaomiSmartPlug2(MiotDevice):
         return self.get_property_by(siid=7, piid=1)[0]["value"]
 
     def set_physical_controls_locked(self, locked: bool) -> None:
-        """lock/unlock button."""
+        """Lock/unlock the physical button."""
         self.set_property_by(siid=13, piid=1, value=locked)
 
     @property
     def physical_controls_locked(self) -> bool:
-        """True if button is locked."""
+        """True if the button is locked."""
         return self.get_property_by(siid=13, piid=1)[0]["value"]
-
-    # ==================================================================
-    # siid=9 — DELAY (таймер відключення)
-    # ==================================================================
 
     def set_delay(self, seconds: int) -> None:
         """
-        setup timer in secconds.
+        Set up a timer in seconds.
 
         Args:
             seconds: 0 or less = disable timer.
@@ -190,34 +182,34 @@ class XiaomiSmartPlug2(MiotDevice):
             self.set_property_by(siid=9, piid=1, value=True)
 
     def set_delay_minutes(self, minutes: float) -> None:
-        """setup timer in minutes."""
+        """Set up a timer in minutes."""
         self.set_delay(int(minutes * 60))
 
     def cancel_delay(self) -> None:
-        """cancel timer."""
+        """Cancel the timer."""
         self.set_property_by(siid=9, piid=1, value=False)
 
     @property
     def delay_on(self) -> bool:
-        """True if timer is on."""
+        """True if the timer is enabled."""
         return self.get_property_by(siid=9, piid=1)[0]["value"]
 
     @property
     def delay_time_sec(self) -> int:
-        """timer left time in seconds."""
+        """Remaining timer time in seconds."""
         return self.get_property_by(siid=9, piid=2)[0]["value"]
 
     def set_max_power_limit(self, kw: Optional[int] = None) -> None:
         """
-        setup max power limit.
+        Set up the maximum power limit.
 
         Args:
             kw: in kW (1 = 1000W, 2 = 2000W, 3 = 3000W).
-                None = disable limit.
+                None = disable the limit.
 
-        example:
-            plug.set_max_power_limit(2)     # лміт 2 кВ (2000W)
-            plug.set_max_power_limit(None)  # вимкнути лміт
+        Example:
+            plug.set_max_power_limit(2) limit 2 kW (2000W)
+            plug.set_max_power_limit(None) disable the limit
         """
         if kw is None:
             self.set_property_by(siid=4, piid=1, value=False)
@@ -227,24 +219,24 @@ class XiaomiSmartPlug2(MiotDevice):
 
     @property
     def max_power_limit_on(self) -> bool:
-        """True if power limit is enabled."""
+        """True if the power limit is enabled."""
         return self.get_property_by(siid=4, piid=1)[0]["value"]
 
     @property
     def max_power_limit_kw(self) -> int:
-        """value in kW of power limit."""
+        """Power limit value in kW."""
         return self.get_property_by(siid=4, piid=2)[0]["value"]
 
     def set_charging_protection(self, watts: Optional[int] = None) -> None:
         """
-        set charging protection.
+        Set charging protection.
 
         Args:
-            watts: example 60.
+            watts: e.g. 60.
                    None = disable charging protection.
 
-        examples:
-            plug.set_charging_protection(60)    # protect 60W
+        Examples:
+            plug.set_charging_protection(60)    # protect at 60W
             plug.set_charging_protection(None)  # remove protection
         """
         if watts is None:
@@ -260,66 +252,66 @@ class XiaomiSmartPlug2(MiotDevice):
 
     @property
     def charging_protection_w(self) -> int:
-        """charging protection status (W)."""
+        """Charging protection value/status (W)."""
         return self.get_property_by(siid=14, piid=2)[0]["value"]
 
     @property
     def charging_protection_remain(self) -> int:
         """
-        remain time or status.
+        Remaining time or status.
 
-        ⚠️  not documented in openhab spec.
-        value 0 = disabled or finished.
+        ⚠️ Not documented in the openHAB spec.
+        Value 0 = disabled or finished.
         """
         return self.get_property_by(siid=14, piid=3)[0]["value"]
 
     def set_protect_time(self, minutes: int) -> None:
         """
-        Встановити час захисту зарядки.
+        Set charging protection time.
 
         Args:
-            minutes: час в хвилинах (наприклад 5).
+            minutes: time in minutes (e.g. 5).
         """
         self.set_property_by(siid=4, piid=3, value=minutes)
 
     @property
     def protect_time_min(self) -> int:
-        """Час захисту зарядки (хвилини)."""
+        """Charging protection time (minutes)."""
         return self.get_property_by(siid=4, piid=3)[0]["value"]
 
     # ==================================================================
-    # siid=5 — CYCLE (розклад)
+    # siid=5 — CYCLE (schedule)
     # ==================================================================
 
     def set_cycle(self, on: bool) -> None:
-        """on/off."""
+        """Enable/disable the schedule."""
         self.set_property_by(siid=5, piid=1, value=on)
 
     def set_cycle_data(self, data: str) -> None:
         """
-        Встановити дані розкладу.
+        Set schedule data.
 
         Args:
-            data: строка у форматі "on_хв;off_хв;flag;flag"
-                  Приклад: "30;30;0;1"
+            data: string in the format "on_min;off_min;flag;flag"
+                  Example: "30;30;0;1"
 
-        ⚠️  Точний формат undocumented.
-             Рекомендовано: спочатку зміните розклад через Mi Home,
-             потім читайте cycle_data через status() щоб зрозуміти формат.
+        ⚠️ The exact format is undocumented.
+           Recommended: first change the schedule via Mi Home,
+           then read cycle_data via status() to understand the format.
         """
         self.set_property_by(siid=5, piid=2, value=data)
 
     @property
     def cycle_on(self) -> bool:
-        """True якщо розклад активний."""
+        """True if the schedule is active."""
         return self.get_property_by(siid=5, piid=1)[0]["value"]
 
     @property
     def cycle_data(self) -> str:
-        """Дані розкладу (raw строка)."""
+        """Schedule data (raw string)."""
         return self.get_property_by(siid=5, piid=2)[0]["value"]
 
 
 if __name__ == "__main__":
-    plug = XiaomiSmartPlug2("≈", "≈")
-    print(plug.set_cycle_data())
+    plug = XiaomiSmartPlug2(os.getenv("PLUG_ADDRESS"), os.getenv("PLUG_TOKEN"))
+    print(plug.on())

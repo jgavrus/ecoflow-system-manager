@@ -27,7 +27,7 @@ so you may need to tune dashboards for your own model.
 
 ## Installation Guide
 
-1. Set up all required credentials in [.env](.env) file
+1. Set up all required credentials in [.env](.env_example) file
 2. Run `docker-compose up -d`
 3. Run `docker-compose logs -f` to see logs
 4. After you see that all containers are up, go to Grafana and import dashboards  
