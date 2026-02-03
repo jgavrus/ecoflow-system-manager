@@ -14,11 +14,20 @@ services:
   alertmanager:
     image: prom/alertmanager
     container_name: alertmanager
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - | # use sed to replace environment variables in alertmanager.yml
+        sed -e "s|\$${WEBHOOK_URL}|$${WEBHOOK_URL}|g" \
+            -e "s|\$${WEBHOOK_TOKEN}|$${WEBHOOK_TOKEN}|g" \
+            -e "s|\$${TELEGRAM_BOT_TOKEN}|$${TELEGRAM_BOT_TOKEN}|g" \
+            -e "s|\$${TELEGRAM_CHAT_ID}|$${TELEGRAM_CHAT_ID}|g" \
+            /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.yml && \
+        /bin/alertmanager --config.file=/tmp/alertmanager.yml
     ports:
       - "9093:9093"
     restart: unless-stopped
+    env_file:
+      - .env
     volumes:
       - ./alertmanager:/etc/alertmanager
 

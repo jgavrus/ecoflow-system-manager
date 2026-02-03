@@ -2,7 +2,7 @@ import json
 
 from loguru import logger as log
 
-from ecoflow.api import EcoflowApi
+from devices.ecoflow.api import EcoflowApi
 
 
 class EcoflowApplication:

@@ -1,6 +1,6 @@
 from prometheus_client import Gauge
 import re
-from ecoflow.exceptions import EcoflowMetricException
+from devices.ecoflow.exceptions import EcoflowMetricException
 from loguru import logger as log
 
 class EcoflowMetric:

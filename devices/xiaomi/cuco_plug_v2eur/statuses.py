@@ -10,7 +10,7 @@ class PowerOnState(IntEnum):
     LAST = 2  # remembers the last state
 
 
-@dataclass(frozen=True)
+@dataclass
 class SmartPlug2Status:
     """
     Full device status — obtained with a single request via status().

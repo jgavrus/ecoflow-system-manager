@@ -35,9 +35,17 @@ templates:
 
 receivers:
   - name: telegram
-    telegram_configs:
-      - bot_token: ${TELEGRAM_BOT_TOKEN}
-        chat_id: ${TELEGRAM_CHAT_ID}
-        api_url: https://api.telegram.org
-        message: '{{ template "telegram.template" . }}'
-        parse_mode: MarkdownV2
+    #    telegram_configs:
+    #      - bot_token: ${TELEGRAM_BOT_TOKEN}
+    #        chat_id: ${TELEGRAM_CHAT_ID}
+    #        api_url: https://api.telegram.org
+    #        message: '{{ template "telegram.template" . }}'
+    #        parse_mode: MarkdownV2
+
+    webhook_configs:
+      - url: ${WEBHOOK_URL}
+        send_resolved: true
+        http_config:
+          authorization:
+            type: Bearer
+            credentials: ${WEBHOOK_TOKEN}

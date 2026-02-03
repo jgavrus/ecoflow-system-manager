@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import warnings
@@ -7,14 +8,14 @@ from typing import Optional
 warnings.filterwarnings("ignore", category=FutureWarning, module=r"miio\.miot_device")
 from miio import MiotDevice
 
-from integrations.cuco_plug_v2eur.statuses import SmartPlug2Status, PowerOnState
+from .statuses import SmartPlug2Status, PowerOnState
 
-logging.getLogger("miio").setLevel(logging.ERROR)  # remove warning about undoc device
+logging.getLogger("miio").setLevel(logging.ERROR)  # remove warning about an undoc device
 
 
 class XiaomiSmartPlug2(MiotDevice):
     """
-    Xiaomi Smart Plug 2 Wi-Fi (cuco.plug.v2eur)
+    Xiaomi Smart Plug 2 Wi-Fi (cuco.plug.v2eur) - Async version
     ───────────────────────────────────────────
     Full MIoT mapping:
 
@@ -80,12 +81,13 @@ class XiaomiSmartPlug2(MiotDevice):
         "charging_protection_remain": {"siid": 14, "piid": 3},
     }
 
-    def __init__(self, ip: str, token: str):
+    def __init__(self, ip: str, token: str, name: str):
+        self.name = name
         super().__init__(ip, token, mapping=self.MAPPING)
 
-    def status(self) -> SmartPlug2Status:
+    async def status(self) -> SmartPlug2Status:
         """Get full device status."""
-        props = self.get_properties_for_mapping()
+        props = await asyncio.to_thread(self.get_properties_for_mapping)
         v = {p["did"]: p.get("value") for p in props}
 
         return SmartPlug2Status(
@@ -108,73 +110,73 @@ class XiaomiSmartPlug2(MiotDevice):
             charging_protection_remain=v["charging_protection_remain"],
         )
 
-    def on(self) -> None:
-        self.set_property_by(siid=2, piid=1, value=True)
+    async def on(self) -> None:
+        await asyncio.to_thread(self.set_property_by, siid=2, piid=1, value=True)
 
-    def off(self) -> None:
-        self.set_property_by(siid=2, piid=1, value=False)
+    async def off(self) -> None:
+        await asyncio.to_thread(self.set_property_by, siid=2, piid=1, value=False)
 
-    def toggle(self) -> None:
+    async def toggle(self) -> None:
         """on->off/off->on"""
-        current = self.get_property_by(siid=2, piid=1)[0]["value"]
-        self.set_property_by(siid=2, piid=1, value=not current)
+        current = await self.get_is_on()
+        await asyncio.to_thread(self.set_property_by, siid=2, piid=1, value=not current)
 
-    @property
-    def is_on(self) -> bool:
-        return self.get_property_by(siid=2, piid=1)[0]["value"]
+    async def get_is_on(self) -> bool:
+        result = await asyncio.to_thread(self.get_property_by, siid=2, piid=1)
+        return result[0]["value"]
 
-    @property
-    def fault(self) -> int:
+    async def get_fault(self) -> int:
         """Device error code. 0 = OK."""
-        return self.get_property_by(siid=2, piid=2)[0]["value"]
+        result = await asyncio.to_thread(self.get_property_by, siid=2, piid=2)
+        return result[0]["value"]
 
-    def set_power_on_state(self, state: PowerOnState) -> None:
+    async def set_power_on_state(self, state: PowerOnState) -> None:
         """
         Set the default power-on state.
 
         Args:
             state: PowerOnState.OFF / ON / LAST
         """
-        self.set_property_by(siid=2, piid=3, value=int(state))
+        await asyncio.to_thread(self.set_property_by, siid=2, piid=3, value=int(state))
 
-    @property
-    def power(self) -> int:
+    async def get_power(self) -> int:
         """Current power (W)."""
-        return self.get_property_by(siid=11, piid=2)[0]["value"]
+        result = await asyncio.to_thread(self.get_property_by, siid=11, piid=2)
+        return result[0]["value"]
 
-    @property
-    def power_consumption(self) -> int:
+    async def get_power_consumption(self) -> int:
         """
         Total charged energy (Wh).
 
-        ⚠️ Firmware bug on cuco.plug.v2eur always returns 0.
+        Firmware bug on cuco.plug.v2eur always returns 0.
         See: hass-xiaomi-miot issue #1347
         """
-        return self.get_property_by(siid=11, piid=1)[0]["value"]
+        result = await asyncio.to_thread(self.get_property_by, siid=11, piid=1)
+        return result[0]["value"]
 
     # ==================================================================
     # siid=7 — INDICATOR
     # ==================================================================
 
-    def set_indicator(self, on: bool) -> None:
+    async def set_indicator(self, on: bool) -> None:
         """Turn the LED indicator on/off."""
-        self.set_property_by(siid=7, piid=1, value=on)
+        await asyncio.to_thread(self.set_property_by, siid=7, piid=1, value=on)
 
-    @property
-    def indicator_on(self) -> bool:
+    async def get_indicator_on(self) -> bool:
         """LED indicator status."""
-        return self.get_property_by(siid=7, piid=1)[0]["value"]
+        result = await asyncio.to_thread(self.get_property_by, siid=7, piid=1)
+        return result[0]["value"]
 
-    def set_physical_controls_locked(self, locked: bool) -> None:
+    async def set_physical_controls_locked(self, locked: bool) -> None:
         """Lock/unlock the physical button."""
-        self.set_property_by(siid=13, piid=1, value=locked)
+        await asyncio.to_thread(self.set_property_by, siid=13, piid=1, value=locked)
 
-    @property
-    def physical_controls_locked(self) -> bool:
+    async def get_physical_controls_locked(self) -> bool:
         """True if the button is locked."""
-        return self.get_property_by(siid=13, piid=1)[0]["value"]
+        result = await asyncio.to_thread(self.get_property_by, siid=13, piid=1)
+        return result[0]["value"]
 
-    def set_delay(self, seconds: int) -> None:
+    async def set_delay(self, seconds: int) -> None:
         """
         Set up a timer in seconds.
 
@@ -182,30 +184,30 @@ class XiaomiSmartPlug2(MiotDevice):
             seconds: 0 or less = disable timer.
         """
         if seconds <= 0:
-            self.set_property_by(siid=9, piid=1, value=False)
+            await asyncio.to_thread(self.set_property_by, siid=9, piid=1, value=False)
         else:
-            self.set_property_by(siid=9, piid=2, value=seconds)
-            self.set_property_by(siid=9, piid=1, value=True)
+            await asyncio.to_thread(self.set_property_by, siid=9, piid=2, value=seconds)
+            await asyncio.to_thread(self.set_property_by, siid=9, piid=1, value=True)
 
-    def set_delay_minutes(self, minutes: float) -> None:
+    async def set_delay_minutes(self, minutes: float) -> None:
         """Set up a timer in minutes."""
-        self.set_delay(int(minutes * 60))
+        await self.set_delay(int(minutes * 60))
 
-    def cancel_delay(self) -> None:
+    async def cancel_delay(self) -> None:
         """Cancel the timer."""
-        self.set_property_by(siid=9, piid=1, value=False)
+        await asyncio.to_thread(self.set_property_by, siid=9, piid=1, value=False)
 
-    @property
-    def delay_on(self) -> bool:
+    async def get_delay_on(self) -> bool:
         """True if the timer is enabled."""
-        return self.get_property_by(siid=9, piid=1)[0]["value"]
+        result = await asyncio.to_thread(self.get_property_by, siid=9, piid=1)
+        return result[0]["value"]
 
-    @property
-    def delay_time_sec(self) -> int:
+    async def get_delay_time_sec(self) -> int:
         """Remaining timer time in seconds."""
-        return self.get_property_by(siid=9, piid=2)[0]["value"]
+        result = await asyncio.to_thread(self.get_property_by, siid=9, piid=2)
+        return result[0]["value"]
 
-    def set_max_power_limit(self, kw: Optional[int] = None) -> None:
+    async def set_max_power_limit(self, kw: Optional[int] = None) -> None:
         """
         Set up the maximum power limit.
 
@@ -214,26 +216,26 @@ class XiaomiSmartPlug2(MiotDevice):
                 None = disable the limit.
 
         Example:
-            plug.set_max_power_limit(2) limit 2 kW (2000W)
-            plug.set_max_power_limit(None) disable the limit
+            await plug.set_max_power_limit(2)    # limit 2 kW (2000W)
+            await plug.set_max_power_limit(None) # disable the limit
         """
         if kw is None:
-            self.set_property_by(siid=4, piid=1, value=False)
+            await asyncio.to_thread(self.set_property_by, siid=4, piid=1, value=False)
         else:
-            self.set_property_by(siid=4, piid=2, value=kw)
-            self.set_property_by(siid=4, piid=1, value=True)
+            await asyncio.to_thread(self.set_property_by, siid=4, piid=2, value=kw)
+            await asyncio.to_thread(self.set_property_by, siid=4, piid=1, value=True)
 
-    @property
-    def max_power_limit_on(self) -> bool:
+    async def get_max_power_limit_on(self) -> bool:
         """True if the power limit is enabled."""
-        return self.get_property_by(siid=4, piid=1)[0]["value"]
+        result = await asyncio.to_thread(self.get_property_by, siid=4, piid=1)
+        return result[0]["value"]
 
-    @property
-    def max_power_limit_kw(self) -> int:
+    async def get_max_power_limit_kw(self) -> int:
         """Power limit value in kW."""
-        return self.get_property_by(siid=4, piid=2)[0]["value"]
+        result = await asyncio.to_thread(self.get_property_by, siid=4, piid=2)
+        return result[0]["value"]
 
-    def set_charging_protection(self, watts: Optional[int] = None) -> None:
+    async def set_charging_protection(self, watts: Optional[int] = None) -> None:
         """
         Set charging protection.
 
@@ -242,58 +244,54 @@ class XiaomiSmartPlug2(MiotDevice):
                    None = disable charging protection.
 
         Examples:
-            plug.set_charging_protection(60)    # protect at 60W
-            plug.set_charging_protection(None)  # remove protection
+            await plug.set_charging_protection(60)    # protect at 60W
+            await plug.set_charging_protection(None)  # remove protection
         """
         if watts is None:
-            self.set_property_by(siid=14, piid=1, value=False)
+            await asyncio.to_thread(self.set_property_by, siid=14, piid=1, value=False)
         else:
-            self.set_property_by(siid=14, piid=2, value=watts)
-            self.set_property_by(siid=14, piid=1, value=True)
+            await asyncio.to_thread(self.set_property_by, siid=14, piid=2, value=watts)
+            await asyncio.to_thread(self.set_property_by, siid=14, piid=1, value=True)
 
-    @property
-    def charging_protection_on(self) -> bool:
+    async def get_charging_protection_on(self) -> bool:
         """True if protection is enabled."""
-        return self.get_property_by(siid=14, piid=1)[0]["value"]
+        result = await asyncio.to_thread(self.get_property_by, siid=14, piid=1)
+        return result[0]["value"]
 
-    @property
-    def charging_protection_w(self) -> int:
+    async def get_charging_protection_w(self) -> int:
         """Charging protection value/status (W)."""
-        return self.get_property_by(siid=14, piid=2)[0]["value"]
+        result = await asyncio.to_thread(self.get_property_by, siid=14, piid=2)
+        return result[0]["value"]
 
-    @property
-    def charging_protection_remain(self) -> int:
+    async def get_charging_protection_remain(self) -> int:
         """
         Remaining time or status.
 
-        ⚠️ Not documented in the openHAB spec.
+        Not documented in the openHAB spec.
         Value 0 = disabled or finished.
         """
-        return self.get_property_by(siid=14, piid=3)[0]["value"]
+        result = await asyncio.to_thread(self.get_property_by, siid=14, piid=3)
+        return result[0]["value"]
 
-    def set_protect_time(self, minutes: int) -> None:
+    async def set_protect_time(self, minutes: int) -> None:
         """
         Set charging protection time.
 
         Args:
             minutes: time in minutes (e.g. 5).
         """
-        self.set_property_by(siid=4, piid=3, value=minutes)
+        await asyncio.to_thread(self.set_property_by, siid=4, piid=3, value=minutes)
 
-    @property
-    def protect_time_min(self) -> int:
+    async def get_protect_time_min(self) -> int:
         """Charging protection time (minutes)."""
-        return self.get_property_by(siid=4, piid=3)[0]["value"]
+        result = await asyncio.to_thread(self.get_property_by, siid=4, piid=3)
+        return result[0]["value"]
 
-    # ==================================================================
-    # siid=5 — CYCLE (schedule)
-    # ==================================================================
-
-    def set_cycle(self, on: bool) -> None:
+    async def set_cycle(self, on: bool) -> None:
         """Enable/disable the schedule."""
-        self.set_property_by(siid=5, piid=1, value=on)
+        await asyncio.to_thread(self.set_property_by, siid=5, piid=1, value=on)
 
-    def set_cycle_data(self, data: str) -> None:
+    async def set_cycle_data(self, data: str) -> None:
         """
         Set schedule data.
 
@@ -305,19 +303,25 @@ class XiaomiSmartPlug2(MiotDevice):
            Recommended: first change the schedule via Mi Home,
            then read cycle_data via status() to understand the format.
         """
-        self.set_property_by(siid=5, piid=2, value=data)
+        await asyncio.to_thread(self.set_property_by, siid=5, piid=2, value=data)
 
-    @property
-    def cycle_on(self) -> bool:
+    async def get_cycle_on(self) -> bool:
         """True if the schedule is active."""
-        return self.get_property_by(siid=5, piid=1)[0]["value"]
+        result = await asyncio.to_thread(self.get_property_by, siid=5, piid=1)
+        return result[0]["value"]
 
-    @property
-    def cycle_data(self) -> str:
+    async def get_cycle_data(self) -> str:
         """Schedule data (raw string)."""
-        return self.get_property_by(siid=5, piid=2)[0]["value"]
+        result = await asyncio.to_thread(self.get_property_by, siid=5, piid=2)
+        return result[0]["value"]
+
+
+async def main():
+    plug = XiaomiSmartPlug2(os.getenv("PLUG_ADDRESS"), os.getenv("PLUG_TOKEN"), name="Test Plug")
+    await plug.off()
+    status = await plug.status()
+    print(status)
 
 
 if __name__ == "__main__":
-    plug = XiaomiSmartPlug2(os.getenv("PLUG_ADDRESS"), os.getenv("PLUG_TOKEN"))
-    plug.off()
+    asyncio.run(main())
